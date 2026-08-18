@@ -1,0 +1,103 @@
+
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Custom Gift Control V2</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0e1014;color:#fff;font-family:Arial,sans-serif;padding:24px}
+.wrap{max-width:760px;margin:auto}.card{background:#181b21;border:1px solid #303640;border-radius:16px;padding:22px;margin-bottom:16px}
+h1{margin:0 0 6px}.sub{color:#a7adb7;font-size:13px;margin-bottom:20px}
+label{display:block;color:#cdd2da;font-size:13px;margin:13px 0 6px}
+input,select,button{width:100%;padding:12px;border-radius:9px;border:1px solid #39404b;background:#232831;color:#fff;font-size:15px}
+button{cursor:pointer;font-weight:700}.primary{background:#ff5867;border-color:#ff5867}.green{background:#159447;border-color:#159447}.gray{background:#292e36}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.status{padding:11px;border-radius:9px;background:#121419;margin-top:12px;font-size:13px}
+.pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;background:#2b3038;margin-right:6px}
+.note{font-size:12px;line-height:1.5;color:#a7adb7}.ok{color:#75e39a}.warn{color:#ffd27a}
+.gifts{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.giftBtn{padding:10px 5px;text-align:center}
+.giftBtn span{display:block;font-size:28px}.giftBtn small{color:#d6d9df}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.gifts{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>🎁 Custom Gift Control V2</h1>
+<div class="sub">Bộ điều khiển overlay test cho OBS. Dữ liệu ở chế độ này là mô phỏng cục bộ.</div>
+
+<label>Tên người dùng</label>
+<input id="username" value="Matti" placeholder="Nhập tên người dùng">
+
+<label>Chọn quà</label>
+<div class="gifts" id="gifts"></div>
+
+<div class="grid">
+<div><label>Số lượng</label><input id="count" type="number" min="1" max="999" value="1"></div>
+<div><label>Thời gian hiển thị (giây, 0 = giữ)</label><input id="duration" type="number" min="0" max="3600" value="0"></div>
+</div>
+
+<label>Avatar URL (tùy chọn)</label>
+<input id="avatar" placeholder="https://...">
+
+<button class="primary" id="send">🎁 GỬI QUÀ TEST</button>
+<div id="status" class="status">Đang kết nối...</div>
+</div>
+
+<div class="card">
+<h2>🔗 Kết nối TikTok</h2>
+<p class="note">Nút dưới đây dùng TikTok Login Kit để người dùng ủy quyền tài khoản. Nó không tự biến username thành dữ liệu LIVE/gift; quyền và event phải được TikTok cấp cho ứng dụng.</p>
+<button class="green" id="connect">KẾT NỐI TIKTOK</button>
+<div id="ttstatus" class="status">Chưa kiểm tra.</div>
+</div>
+
+<div class="card">
+<h2>📺 OBS</h2>
+<p class="note">Overlay:</p>
+<code>http://localhost:3000/overlay</code>
+<p class="note">Trong OBS thêm Browser Source và dùng URL trên.</p>
+</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket=io();
+const gifts=[
+["Wink wink","💗"],["Music On Stage","🎤"],["Donut","🍩"],["Heart Rain","🌧️"],["Rose","🌹"],
+["GG","🌈"],["Crown","👑"],["Heart","❤️"],["Fire","🔥"],["Star","⭐"]
+];
+let selected="Donut";
+const giftsEl=document.getElementById("gifts");
+gifts.forEach(([name,icon])=>{
+ const b=document.createElement("button"); b.className="giftBtn gray";
+ b.innerHTML=`<span>${icon}</span><small>${name}</small>`;
+ b.onclick=()=>{selected=name;document.querySelectorAll(".giftBtn").forEach(x=>x.style.outline="none");b.style.outline="2px solid #ff5867"};
+ giftsEl.appendChild(b);
+});
+giftsEl.children[2].click();
+
+socket.on("connect",()=>document.getElementById("status").innerHTML='<span class="ok">🟢 Đã kết nối server</span>');
+socket.on("disconnect",()=>document.getElementById("status").innerHTML='<span class="warn">🔴 Mất kết nối server</span>');
+
+document.getElementById("send").onclick=()=>{
+ socket.emit("gift",{
+   username:document.getElementById("username").value.trim()||"Guest",
+   gift:selected,
+   count:Number(document.getElementById("count").value)||1,
+   duration:Number(document.getElementById("duration").value)||0,
+   avatar:document.getElementById("avatar").value.trim()
+ });
+};
+
+document.getElementById("connect").onclick=()=>location.href="/auth/tiktok";
+
+async function status(){
+ try{
+  const r=await fetch("/api/tiktok/status"); const d=await r.json();
+  document.getElementById("ttstatus").textContent=d.message;
+ }catch(e){document.getElementById("ttstatus").textContent="Không đọc được trạng thái."}
+}
+status();
+</script>
+</body>
+</html>

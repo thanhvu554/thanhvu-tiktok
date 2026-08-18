@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TikTok LIVE Gift Overlay</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    background:transparent;
+    overflow:hidden;
+    font-family:Arial,sans-serif
+}
+
+#feed{
+    padding:5px 10px;
+    width:100%
+}
+
+.row{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    height:55px;
+    color:#fff;
+    text-shadow:0 1px 2px #000;
+    animation:in .18s ease-out
+}
+
+.avatar{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    object-fit:cover;
+    border:1px solid rgba(255,255,255,.35);
+    background:#252932;
+    flex:none
+}
+
+.name{
+    font-weight:800;
+    font-size:16px;
+    font-style:italic;
+    white-space:nowrap
+}
+
+.sent{
+    font-size:15px;
+    margin-left:3px
+}
+
+.giftImage{
+    width:38px;
+    height:38px;
+    object-fit:contain;
+    margin-left:3px;
+    flex:none
+}
+
+.giftName{
+    font-size:15px;
+    font-weight:700;
+    margin-left:2px
+}
+
+.times{
+    font-weight:800;
+    font-size:16px;
+    margin-left:2px
+}
+
+@keyframes in{
+    from{
+        opacity:0;
+        transform:translateY(5px)
+    }
+    to{
+        opacity:1;
+        transform:none
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="feed"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const feed=document.getElementById("feed");
+const socket=io();
+
+function fallbackAvatar(name){
+
+    const letter=(name||"G")[0].toUpperCase();
+
+    return "data:image/svg+xml;charset=utf-8,"+
+    encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg"
+         width="80"
+         height="80">
+
+        <circle
+            cx="40"
+            cy="40"
+            r="40"
+            fill="#303640"/>
+
+        <text
+            x="40"
+            y="51"
+            text-anchor="middle"
+            font-family="Arial"
+            font-size="34"
+            fill="white">
+            ${letter}
+        </text>
+
+    </svg>`);
+}
+
+
+function getGiftImage(d){
+
+    return (
+        d.giftPictureUrl ||
+        d.giftPicture ||
+        d.giftImage ||
+        d.giftImageUrl ||
+        d.pictureUrl ||
+        ""
+    );
+}
+
+
+socket.on("gift",d=>{
+
+    console.log("GIFT:",d);
+
+    const r=document.createElement("div");
+    r.className="row";
+
+    r.innerHTML=`
+        <img class="avatar">
+        <span class="name"></span>
+        <span class="sent">sent</span>
+
+        <img class="giftImage">
+
+        <span class="giftName"></span>
+        <span class="times"></span>
+    `;
+
+
+    /* USERNAME */
+
+    r.querySelector(".name").textContent=
+        d.username || "Guest";
+
+
+    /* GIFT NAME */
+
+    r.querySelector(".giftName").textContent=
+        d.gift || "Gift";
+
+
+    /* COUNT */
+
+    r.querySelector(".times").textContent=
+        "x" + (Number(d.count) || 1);
+
+
+    /* AVATAR */
+
+    const avatar=
+        r.querySelector(".avatar");
+
+    avatar.src=
+        d.avatar ||
+        d.profilePictureUrl ||
+        fallbackAvatar(d.username);
+
+    avatar.onerror=()=>{
+        avatar.src=fallbackAvatar(d.username);
+    };
+
+
+    /* GIFT IMAGE */
+
+    const giftImage=
+        r.querySelector(".giftImage");
+
+    const giftURL=
+        getGiftImage(d);
+
+
+    if(giftURL){
+
+        giftImage.src=giftURL;
+
+        giftImage.onerror=()=>{
+            giftImage.style.display="none";
+        };
+
+    }else{
+
+        /*
+         Chưa có URL ảnh quà từ server.
+         Khi server gửi giftPictureUrl,
+         ảnh quà TikTok sẽ tự động hiện.
+        */
+
+        giftImage.style.display="none";
+    }
+
+
+    feed.prepend(r);
+
+
+    while(feed.children.length>8){
+        feed.lastElementChild.remove();
+    }
+
+
+    if(Number(d.duration)>0){
+
+        setTimeout(()=>{
+            if(r.parentNode){
+                r.remove();
+            }
+        },Number(d.duration)*1000);
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>
